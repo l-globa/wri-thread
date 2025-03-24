@@ -1,0 +1,100 @@
+{% extends "layout.html" %}
+
+{% block body %}
+    <div data-scenes='{{ data["scenes"]|tojson }}' data-plots='{{ data["plots"]|tojson }}' id="shuttle"></div>
+    <!-- Grid-based structure -->
+    <div class="container">
+        <section class="plot-lines">
+            <canvas id="myCanvas" resize="true"></canvas>
+            <!--script>
+                // Canvas behaviour
+                // TODO:
+                // Receive data from server
+                // Create DOM elements and populate with data received
+                    // Start and stop positions for plot lines (+ possible offset from zero)
+                    // Scene "stations" at right coordinates + text display
+                    // Connecting lines along plotlines
+                // Scroll feature (maybe done via css only)
+                // Zoom in and out (scale point coordinates by a factor and transform the image)
+                    // A few stepwise zoom options to begin with
+                    // Parameters needed: scale, offsetX, offsetY
+            </script -->
+        </section>
+        <section class="scene-list">
+            <button id="newScene">New Scene</button>
+            <button id="editScene">Edit Scene</button>
+            <button id="deleteScene">Delete Scene</button>
+            {% for item in test %}
+            <!--article class="scene selectable">
+                <summary class="title">{{ item.title }}</summary>
+                <details class="contents">{{ item.contents }}</details>
+                <li class="scene_id" hidden>{{ item.scene_id }}</li>
+                <li class="type" hidden>{{ item.type }}</li>
+                <li class="chronology" hidden>{{ item.chronology }}</li>
+                <li class="time_start" hidden>{{ item.time_start }}</li>
+                <li class="time_end" hidden>{{ item.time_end }}</li>
+                <li class="plot_id" hidden>{{ item.plot_id }}</li>
+                <li class="position" hidden>{{ item.position }}</li>
+                <li class="previous" hidden>{{ item.previous }}</li>
+                <li class="next" hidden>{{ item.next }}</li>
+                <li>all plots <span bold>with main selected</span></li>
+                <li></li>
+            </article-->
+            {% endfor %}
+        </section>
+        <aside class="plot-list">
+            <ul>
+                {% for item in plots %}
+                <li class="plot selectable">
+                    <p class="title">{{ item.title }}</p>
+                    <p class="id" hidden>{{ item.id }}</p>
+                    <p class="priority" hidden>{{ item.priority }}</p>
+                    <p class="length" hidden>{{ item.length }}</p>
+                    <p class="colour" hidden>tomato</p>
+                </li>
+                {% endfor %}
+            </ul>
+        </aside>
+    </div>
+    <section>
+        <form id="sceneMenu">
+            <label for="title">Scene title</label><br>
+            <input type="text" id="title" name="title" value="New Scene"><br>
+            <label for="contents">Contents:</label><br>
+            <input type="text" id="contents" name="contents" value="" placeholder="What happens in the scene?"><br>
+            <input type="hidden" id="scene_id" name="scene_id" value=""><br>
+            <p>Choose the scene type:</p>
+                <label for="normal">Normal</label>
+                <input type="radio" id="normal" name="type" value="normal"><br>
+                <label for="flashback">Flashback</label>
+                <input type="radio" id="flashback" name="type" value="flashback"><br>
+                <label for="dream">Dream</label>
+                <input type="radio" id="dream" name="type" value="dream"><br>
+            <p>Insert new scene:</p>
+            <label for="before">before</label>
+            <input type="radio" id="before" name="follow" value="next">
+            <label for="after">after</label>
+            <input type="radio" id="after" name="follow" value="previous">
+            <select id="sceneList" name="neighbour">
+                <!-- option with value = scene_id, innerHTML = scene title -->
+            </select><br>
+            <label for="part_of">Select all applicable plots:</label>
+            <select id="part_of" name="part_of" multiple>
+                <!-- option with value = plot_id, innerHTML = plot title -->
+            </select><br>
+            <label for="main_plot">Pick the main plot:</label>
+            <select id="main_plot" name="main_plot">
+                <!-- option with value = plot_id OR array index that holds the plot_id, innerHTML = plot title -->
+            </select><br>
+            <input type="hidden" id="sceneSubmit" name="action" value="">
+            <input type="submit" value="Submit">
+            <!--
+            Fields like chronology, position and primary state
+            should be processed with js to be filled automatically
+            load scene_id as hidden to correctly process data
+            needs an option for additional plot hookup
+            skip time start and end for now as not relevant for function
+            -->
+        </form>
+    </section>
+{% endblock %}

@@ -1,0 +1,45 @@
+<!-- Layout for the default project overview page -->
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+        <title>
+            {{ title }}
+        </title>
+        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+        <meta name="viewport", content="initial-scale=1", width="device-width", charset="utf-8">
+        <!-- Load the Paper.js library -->
+        <!--script type="text/javascript" src="{{ url_for('static', filename='js/paper-full.js') }}"></script-->
+        <!-- Define inlined PaperScript associate it with myCanvas -->
+        <!--script type="text/paperscript" canvas="myCanvas" src="{{ url_for('static', filename='js/canvas.js') }}"></script-->
+        <script type="text/javascript" src="{{ url_for('static', filename='js/script_manager.js') }}"></script> 
+    </head>
+    <body>
+        <header>
+            <!-- add navbar and peripheral GUI -->
+             <nav>
+                <li>file</li>
+                <button>save</button>
+                <button>save as</button>
+                <button>close</button>
+                <button id="loadProject">load</button>
+                <button>new</button>
+             </nav>
+
+             <!-- flashed messages display -->
+             {% if get_flashed_messages() %}
+             <div>{{ get_flashed_messages() }}</div>
+             {% endif %}
+        </header>
+        <main>
+            <button class="canvas-toolbar" id="summonScene" type="button">load scenes</button>
+            <button class="canvas-toolbar" id="summonConnection" type="button">connect</button>
+            {% block body %}
+            {% endblock %}
+        </main>
+        <footer>
+            <!-- session and project info, maybe also navigation and GUI -->
+        </footer>
+    </body>
+</html>

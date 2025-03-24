@@ -1,0 +1,67 @@
+/* overall style */
+body, html {
+  height: 100%;
+  margin: 0;
+}
+
+/* specific classes */
+
+canvas { 
+    border:1px solid #000000;
+    overflow-x: scroll;
+    overflow-y: scroll;
+}
+
+/* Scale canvas with resize attribute to full size */
+canvas[resize] {
+  width: 100%;
+  height: 100%;
+}
+
+canvas-toolbar {
+  float: inline-end;
+}
+
+.container {
+  display: grid;
+  grid-template-areas:
+    "big big"
+    "medium small";
+  grid-template-columns: 5fr 1fr;
+  gap: 5px;
+  background-color: antiquewhite;
+  padding: 0px;
+  width: 100vw;
+  max-height: 92vh;
+}
+
+.container > section, aside {
+    background-color: ivory;
+    border: 1px solid black;
+    padding: 20px;
+    font-size: 30px;
+    text-align: left;
+    overflow-x: hidden;
+}
+
+.scene-menu {
+  grid-area: medium;
+  height: 30vh;
+  overflow-y: scroll;
+}
+
+.focused {
+  color: brown;
+}
+
+.plot-lines {
+  grid-area: big;
+  height: 50vh;
+  overflow-y: hidden;
+}
+
+.plot-list {
+  grid-area: small;
+  height: 30vh;
+  overflow-y: scroll;
+}
