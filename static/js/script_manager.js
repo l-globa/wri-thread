@@ -136,16 +136,34 @@ function selection_sensor(element) {
   });
 };
 
+// TODO: consider a separate 'refresh form' function + tidy up the edge cases
 function populate_scene_menu(data, action) {
   document.getElementById('sceneSubmit').value = action;
 
-  // Find previous neighbour
-  let neighbour = find_neighbour(data.position);
-
-  // Load the list of scenes
   let sceneList = document.getElementById('sceneList');
-  load_options(DATA, sceneList, 'scene_id', 'title', DATA[neighbour.index].scene_id);
-  document.getElementById(neighbour.follow).checked = true;
+
+  if (sceneCount == 0 || (sceneCount == 1 && action == 'edit')) {
+    // Case of the first scene
+    sceneList.disabled = true;
+    document.getElementById('before').disabled = true;
+    document.getElementById('after').disabled = true;
+    document.getElementById('before').checked = false;
+    document.getElementById('after').checked = false;
+  }
+  else {
+    // Find previous neighbour
+    let neighbour = find_neighbour(action, data.scene_id);
+    console.log(neighbour);
+
+    // Load the list of scenes
+    load_options(DATA, sceneList, 'scene_id', 'title', DATA[neighbour.index].scene_id);
+    document.getElementById(neighbour.follow).checked = true;
+
+    // Switch on the option to select again
+    sceneList.disabled = false;
+    document.getElementById('before').disabled = false;
+    document.getElementById('after').disabled = false;
+  };
 
   // Load the list of plots
   let partOf = document.getElementById('part_of');
@@ -170,7 +188,7 @@ function populate_scene_menu(data, action) {
     };
   };
   // TODO check for edge cases:
-  // 1 or no scenes
+  // 1 or no scenes - done
   // 1 or no plots
   // Disable irrelevant options
 };
@@ -202,27 +220,42 @@ function load_options(data, parent, value, innerHTML, selected) {
   };
 };
 
-function find_neighbour(position) {
-  if (position) {
-    // For existing scene
-    if (position == '0') {
-      var index = 1, 
-          follow = 'before';
-    }
-    else {
-      var index = (Number(position) - 1), 
-          follow = 'after';
+function find_neighbour(action, scene_id) {
+  // Neighbour parameters
+  var index = null;
+      follow = null;
+
+  if (action == 'edit') {
+    if (sceneCount > 1) {
+      // For an existing scene
+      let position = DATA.findIndex(item => item.scene_id == scene_id);
+      if (position == 0) {
+        index = 1, 
+        follow = 'before';
+      }
+      else {
+        index = position - 1, 
+        follow = 'after';
+      };
     };
   }
   else {
     // For a new scene
-    var index = (Number(sceneCount) - 1);
-        follow = 'after';
+    if (sceneCount > 0) {
+      index = sceneCount - 1;
+      follow = 'after';
+    };
   };
+
   return { index, follow };
 };
 
 function calculate_position(neighbourId, follow) {
+  // Special case for the first scene
+  if (sceneCount == 0) {
+    return 0;
+  };
+
   let index = DATA.findIndex(item => item.scene_id == neighbourId);
   if (follow == 'previous') {
     return index + 1;
@@ -230,10 +263,8 @@ function calculate_position(neighbourId, follow) {
   else if (follow == 'next' || 'this') {
     return index;
   }
-  else {
-    // Case for the very first scene
-    return 0;
-  };
+  // TODO: return correct error
+  return 0;
 };
 
 function process_scene(formData) {
@@ -282,21 +313,22 @@ function update_scenes(data, neighbour, action) {
     oldItem = DATA.splice(index, 0, newItem);
     sceneCount++;
   }
-  else if (action == 'edit') {
-    // Returns previous version of the edited scene
+  else {
+    // Removes the item from specified index
     index = calculate_position(data.scene_id, 'this');
     oldItem = DATA.splice(index, 1);
-    index = calculate_position(neighbour.id, neighbour.follow);
-    DATA.splice(index, 0, newItem);
-  }
-  else if (action == 'delete') {
-    // Delete the item from the array
-    // Returns the deleted item
-    index = calculate_position(data.scene_id, 'this');
-    oldItem = DATA.splice(index, 1);
-    newItem = [];
     sceneCount--;
+    
+    if (action == 'edit') {
+      // Recursive call to add item back in at new position
+      update_scenes(data, neighbour, 'add');
+    }
+    else {
+      newItem = [];
+    };
   };
+  
+  // Return the values to be saved in history
   return [oldItem, newItem, index, action];
 };
 
@@ -309,7 +341,13 @@ function update_scene_list(data, neighbour, action) {
 
   if (action == 'add') {
     // Create the HTML node for the scene
-    element = create_scene_element(data, neighbour, action);
+    element = create_scene_element(data);
+
+    // Check for the first scene
+    if (sceneCount == 1) {
+      document.querySelector('.scene-list').appendChild(element);
+      return;
+    }
 
     // Retrieve the neighbour node
     for (let i = 0; i < sceneIds.length; i++) {
@@ -357,6 +395,7 @@ function update_scene_list(data, neighbour, action) {
 
 window.onload = function() {
   console.log("loaded");
+
   active = document.getElementById('shuttle');
   // populate the js db variables
   load_data(active);
@@ -419,7 +458,7 @@ window.onload = function() {
     // Process form data into scene format
     var processed = process_scene(formData);
     console.log(processed.data);
-    console.log(processed.position);
+    console.log(processed.neighbour);
 
     // Add the scene into DATA storage
     let record = update_scenes(processed.data, processed.neighbour, processed.action);

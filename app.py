@@ -53,7 +53,13 @@ def index():
         ],
     }
 
-    return render_template("index.html", title="prototype", data=data)
+    # Data for testing the scripts with no pre-written scenes
+    empty = {
+        'scenes': [],
+        'plots': [],
+    }
+
+    return render_template("index.html", title="prototype", data=empty)
     # TODO dynamically populate project info fields
 
 
