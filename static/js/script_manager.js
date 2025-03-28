@@ -15,11 +15,17 @@ const scene_default = {
   title: "Test Scene", contents: "", scene_id: 'temp', type: "normal", part_of: [], pick_main: null, neighbour: null, follow: 'after'
 };
 
+const plot_default = {
+  plot_title: "New Plot", plot_id: 'temp', colour: ''
+};
+
 // Specific HTML tags for each class of a scene and plot, 'p' if not specified here
 const sceneElement_default = {
   title: 'summary', contents: 'details'
 };
-const plotElement_default = {};
+const plotElement_default = {
+  colour: 'div'
+};
 
 
 // ==============================================================================================================================================================
@@ -108,14 +114,19 @@ function create_scene_element(data) {
 
 function create_plot_element(data) {
   // Obtain the new parent element
-  let element = create_element(data, 'li', plotElement_default);
+  let element = create_element(data, 'p', plotElement_default);
 
   // Assign appropriate classes
   element.classList.add('plot', 'selectable');
 
   // Make visible
-  element.querySelector('.title').hidden = false;
-  element.querySelector('.colour').hidden = false;
+  element.querySelector('.plot_title').hidden = false;
+
+  // Render colour
+  let colour = element.querySelector('.colour');
+  colour.style.backgroundColor = colour.innerHTML;
+  colour.innerHTML = '&emsp;';
+  colour.hidden = false;
 
   // Return the parent node
   return element;
@@ -167,12 +178,17 @@ function populate_scene_menu(data, action) {
 
   // Load the list of plots
   let partOf = document.getElementById('part_of');
-  load_options(PLOTS, partOf, 'id', 'title', data.plot_id);
+  load_options(PLOTS, partOf, 'plot_id', 'plot_title', data.part_of);
 
-  // TODO: load the selected main plot
+  // Load the selected main plot
   document.getElementById('part_of').dispatchEvent(new Event('change'));
   if (data.pick_main) {
-    document.getElementById('main_plot').children[Number(data.pick_main)].selected = true;
+    let options = document.getElementById('main_plot').children;
+    for (let i = 0; i < options.length; i++) {
+      if (options[i].value == data.pick_main) {
+        options[i].selected = true;
+      };
+    };
   };
 
   let element = null;
@@ -193,30 +209,60 @@ function populate_scene_menu(data, action) {
   // Disable irrelevant options
 };
 
+function populate_plot_menu(data, action) {
+  document.getElementById('plotSubmit').value = action;
+
+  let element = null;
+  for (const key of Object.keys(data)) {
+    element = document.getElementById(key);
+    if (element) {
+      element.value = data[key];
+    }
+    else {
+      if (key == 'type') {
+        document.getElementById(data[key]).checked = true;
+      };
+    };
+  };
+
+  // Set up plot priority
+
+  // Check off any scenes you want to add
+};
+
 function load_options(data, parent, value, innerHTML, selected) {
   // Empty list
   parent.innerHTML = "";
-  
+
+  // Default setup is multiple pre-selected items
+  // If no pre-selected option add a placeholder
+  if (!selected) {
+  let empty = document.createElement('option');
+  empty.value = "";
+  empty.innerHTML = 'select';
+  empty.selected = true;
+  empty.disabled = true;
+  empty.hidden = true;
+  parent.appendChild(empty);
+
+  // Set to an empty array to avoid null TypeError below
+  selected = [];
+  }
+  // If there is only one selected option
+  else if (!Array.isArray(selected)) {
+    selected = Array.of(selected);
+  };
+
   // Create options for every data entry
-  for (var i = 0; i < data.length; i++) {
+  for (let i = 0; i < data.length; i++) {
     let option = document.createElement('option');
     option.value = data[i][value];
     option.innerHTML = data[i][innerHTML];
-    // TODO: add support for multiple selected?
-    if (selected == data[i][value]) {
+
+    if (selected.includes(data[i][value])) {
       option.selected = true;
     };
     parent.appendChild(option);
-  };
-
-  // If no pre-selected option add a placeholder
-  if (!selected) {
-    let empty = document.createElement('option');
-    empty.value = "";
-    empty.innerHTML = 'select';
-    empty.selected = true;
-    empty.disabled = true;
-    parent.appendChild(empty);
   };
 };
 
@@ -493,6 +539,10 @@ window.onload = function() {
     load_options(list, pickMain, 'value', 'innerHTML', null);
   });
 
+  // Calling a form for new plot
+  document.getElementById('newPlot').addEventListener("click", function() {
+    populate_plot_menu(plot_default, 'add');
+  });
 };
 
 // .parse() method to convert json to js object

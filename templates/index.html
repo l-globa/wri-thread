@@ -24,39 +24,14 @@
             <button id="newScene">New Scene</button>
             <button id="editScene">Edit Scene</button>
             <button id="deleteScene">Delete Scene</button>
-            {% for item in test %}
-            <!--article class="scene selectable">
-                <summary class="title">{{ item.title }}</summary>
-                <details class="contents">{{ item.contents }}</details>
-                <li class="scene_id" hidden>{{ item.scene_id }}</li>
-                <li class="type" hidden>{{ item.type }}</li>
-                <li class="chronology" hidden>{{ item.chronology }}</li>
-                <li class="time_start" hidden>{{ item.time_start }}</li>
-                <li class="time_end" hidden>{{ item.time_end }}</li>
-                <li class="plot_id" hidden>{{ item.plot_id }}</li>
-                <li class="position" hidden>{{ item.position }}</li>
-                <li class="previous" hidden>{{ item.previous }}</li>
-                <li class="next" hidden>{{ item.next }}</li>
-                <li>all plots <span bold>with main selected</span></li>
-                <li></li>
-            </article-->
-            {% endfor %}
         </section>
         <aside class="plot-list">
-            <ul>
-                {% for item in plots %}
-                <li class="plot selectable">
-                    <p class="title">{{ item.title }}</p>
-                    <p class="id" hidden>{{ item.id }}</p>
-                    <p class="priority" hidden>{{ item.priority }}</p>
-                    <p class="length" hidden>{{ item.length }}</p>
-                    <p class="colour" hidden>tomato</p>
-                </li>
-                {% endfor %}
-            </ul>
+            <button id="newPlot">New Plot</button>
+            <button id="editPlot">Edit Plot</button>
+            <button id="deletePlot">Delete Plot</button>
         </aside>
     </div>
-    <section>
+    <div class="container">
         <form id="sceneMenu">
             <label for="title">Scene title</label><br>
             <input type="text" id="title" name="title" value="New Scene"><br>
@@ -75,19 +50,19 @@
             <input type="radio" id="before" name="follow" value="next">
             <label for="after">after</label>
             <input type="radio" id="after" name="follow" value="previous">
-            <select id="sceneList" name="neighbour">
+            <select id="sceneList" name="neighbour" search='true' required>
                 <!-- option with value = scene_id, innerHTML = scene title -->
             </select><br>
-            <label for="part_of">Select all applicable plots:</label>
-            <select id="part_of" name="part_of" multiple>
+            <label for="part_of">Select all applicable plots:</label><br>
+            <select id="part_of" name="part_of" multiple="multiple" size="3" required>
                 <!-- option with value = plot_id, innerHTML = plot title -->
             </select><br>
             <label for="main_plot">Pick the main plot:</label>
-            <select id="main_plot" name="main_plot">
+            <select id="main_plot" name="main_plot" required>
                 <!-- option with value = plot_id OR array index that holds the plot_id, innerHTML = plot title -->
             </select><br>
             <input type="hidden" id="sceneSubmit" name="action" value="">
-            <input type="submit" value="Submit">
+            <input type="submit" value="Save scene">
             <!--
             Fields like chronology, position and primary state
             should be processed with js to be filled automatically
@@ -96,5 +71,17 @@
             skip time start and end for now as not relevant for function
             -->
         </form>
-    </section>
+    </div>
+    <div class="container">
+        <form id="plotMenu">
+            <label for="plotTitle">Plot title</label><br>
+            <input type="text" id="plot_title" name="title" value=""><br>
+            <input type="hidden" id="plot_id" name="id" value="">
+            <label for="plotColor">Choose colour:</label>
+            <input type="color" id="colour" name="colour" value="">
+            <input type="hidden" id="plotSubmit" value="">
+            <input type="submit" value="Save plot">
+            <!-- no need to upload the length attribute here as it's not changed by the user -->
+        </form>
+    </div>
 {% endblock %}
