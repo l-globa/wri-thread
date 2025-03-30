@@ -54,7 +54,7 @@
                 <!-- option with value = scene_id, innerHTML = scene title -->
             </select><br>
             <label for="part_of">Select all applicable plots:</label><br>
-            <select id="part_of" name="part_of" multiple="multiple" size="3" required>
+            <select id="part_of" name="part_of" multiple size="3" required>
                 <!-- option with value = plot_id, innerHTML = plot title -->
             </select><br>
             <label for="main_plot">Pick the main plot:</label>
@@ -75,11 +75,19 @@
     <div class="container">
         <form id="plotMenu">
             <label for="plotTitle">Plot title</label><br>
-            <input type="text" id="plot_title" name="title" value=""><br>
-            <input type="hidden" id="plot_id" name="id" value="">
+            <input type="text" id="plot_title" name="plot_title" value=""><br>
+            <input type="hidden" id="plot_id" name="plot_id" value="">
             <label for="plotColor">Choose colour:</label>
             <input type="color" id="colour" name="colour" value="">
-            <input type="hidden" id="plotSubmit" value="">
+            <p>Insert new plot:</p>
+            <label for="before">before</label>
+            <input type="radio" id="p_before" name="follow" value="next">
+            <label for="after">after</label>
+            <input type="radio" id="p_after" name="follow" value="previous">
+            <select id="plotList" name="neighbour" search='true' required>
+                <!-- option with value = scene_id, innerHTML = scene title -->
+            </select><br>
+            <input type="hidden" id="plotSubmit" name="action" value="">
             <input type="submit" value="Save plot">
             <!-- no need to upload the length attribute here as it's not changed by the user -->
         </form>

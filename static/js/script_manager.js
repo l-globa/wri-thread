@@ -16,7 +16,7 @@ const scene_default = {
 };
 
 const plot_default = {
-  plot_title: "New Plot", plot_id: 'temp', colour: ''
+  plot_title: "New Plot", plot_id: 'temp', colour: '', neighbour: null, follow: 'after'
 };
 
 // Specific HTML tags for each class of a scene and plot, 'p' if not specified here
@@ -163,7 +163,7 @@ function populate_scene_menu(data, action) {
   }
   else {
     // Find previous neighbour
-    let neighbour = find_neighbour(action, data.scene_id);
+    let neighbour = find_neighbour(action, 'scene_id', data.scene_id, DATA);
     console.log(neighbour);
 
     // Load the list of scenes
@@ -191,11 +191,17 @@ function populate_scene_menu(data, action) {
     };
   };
 
+  // This needs rework
   let element = null;
   for (const key of Object.keys(data)) {
     element = document.getElementById(key);
     if (element) {
-      element.value = data[key];
+      if(key == 'part_of' || key == 'pick_main') {
+        continue;
+      }
+      else {
+        element.value = data[key];
+      };
     }
     else {
       if (key == 'type') {
@@ -217,15 +223,34 @@ function populate_plot_menu(data, action) {
     element = document.getElementById(key);
     if (element) {
       element.value = data[key];
-    }
-    else {
-      if (key == 'type') {
-        document.getElementById(data[key]).checked = true;
-      };
     };
   };
 
-  // Set up plot priority
+  // Set up plot priority through neighbour mechanic
+  let plotList = document.getElementById('plotList');
+
+  if (plotCount == 0 || (plotCount == 1 && action == 'edit')) {
+    // Case of the first plot
+    plotList.disabled = true;
+    document.getElementById('p_before').disabled = true;
+    document.getElementById('p_after').disabled = true;
+    document.getElementById('p_before').checked = false;
+    document.getElementById('p_after').checked = false;
+  }
+  else {
+    // Find previous neighbour
+    let neighbour = find_neighbour(action, 'plot_id', data.plot_id, PLOTS);
+    console.log(neighbour);
+
+    // Load the list of scenes
+    load_options(PLOTS, plotList, 'plot_id', 'plot_title', PLOTS[neighbour.index].plot_id);
+    document.getElementById(neighbour.follow).checked = true;
+
+    // Switch on the option to select again
+    sceneList.disabled = false;
+    document.getElementById('before').disabled = false;
+    document.getElementById('after').disabled = false;
+  };
 
   // Check off any scenes you want to add
 };
@@ -266,31 +291,27 @@ function load_options(data, parent, value, innerHTML, selected) {
   };
 };
 
-function find_neighbour(action, scene_id) {
+function find_neighbour(action, idName, id, array) {
   // Neighbour parameters
   var index = null;
       follow = null;
 
   if (action == 'edit') {
-    if (sceneCount > 1) {
-      // For an existing scene
-      let position = DATA.findIndex(item => item.scene_id == scene_id);
-      if (position == 0) {
-        index = 1, 
-        follow = 'before';
-      }
-      else {
-        index = position - 1, 
-        follow = 'after';
-      };
+    // For an existing scene
+    let position = array.findIndex(item => item[idName] == id);
+    if (position == 0) {
+      index = 1, 
+      follow = 'before';
+    }
+    else {
+      index = position - 1, 
+      follow = 'after';
     };
   }
   else {
     // For a new scene
-    if (sceneCount > 0) {
-      index = sceneCount - 1;
-      follow = 'after';
-    };
+    index = array.length - 1;
+    follow = 'after';
   };
 
   return { index, follow };
@@ -333,6 +354,35 @@ function process_scene(formData) {
   let neighbour = {};
   neighbour.id = formData.get('neighbour');
   neighbour.follow = formData.get('follow');
+  formData.delete('follow');
+  formData.delete('neighbour');
+
+  // Copy fields that require no change
+  for (const info of formData.entries()) {
+    data[info[0]] = info[1];
+  };
+
+  return {data, neighbour, action};
+};
+
+// TODO simplify by combining with the similar scene related functions
+function process_plot(formData) {
+  let data = {};
+  let action = formData.get('action');
+  formData.delete('action');
+
+  // Give a negative temp id (server db gives permanent)
+  if (formData.get('plot_id') == "temp") {
+    formData.delete('plot_id');
+    additions++;
+    data['plot_id'] = String(- additions);
+  };
+
+  // Find the new plot priority
+  // TODO include relevant fields in the form
+  let neighbour = {};
+  neighbour.id = formData.get('neighbour') ?? 1;
+  neighbour.follow = formData.get('follow') ?? 'previous';
   formData.delete('follow');
   formData.delete('neighbour');
 
@@ -431,6 +481,94 @@ function update_scene_list(data, neighbour, action) {
     if (action == 'edit') {
       // Call recursively to add the updated node back in
       update_scene_list(data, neighbour, 'add');
+    };
+  };
+};
+
+// Updates the PLOTS array
+// TODO: look to simplify by combining with scene function
+function update_plots(data, neighbour, action) {
+  let index = 0,
+      oldItem = [],
+      newItem = data;
+  // TODO: first save the original item in history
+
+  if (action == 'add') {
+    // Inserts the item at position specified by the index
+    index = calculate_position(neighbour.id, neighbour.follow);
+    oldItem = PLOTS.splice(index, 0, newItem);
+    plotCount++;
+  }
+  else {
+    // Removes the item from specified index
+    index = calculate_position(data.plot_id, 'this');
+    oldItem = PLOTS.splice(index, 1);
+    plotCount--;
+    
+    if (action == 'edit') {
+      // Recursive call to add item back in at new position
+      update_plots(data, neighbour, 'add');
+    }
+    else {
+      newItem = [];
+    };
+  };
+  
+  // Return the values to be saved in history
+  return [oldItem, newItem, index, action];
+};
+
+// Updates the visible list
+function update_plot_list(data, neighbour, action) {
+  // Refresh the list of plot nodes
+  let plotIds = document.querySelectorAll(".plot_id");
+  let element = {};
+
+  if (action == 'add') {
+    // Create the HTML node for the scene
+    element = create_plot_element(data);
+
+    // Check for the first plot
+    if (plotCount == 1) {
+      document.querySelector('.plot-list').appendChild(element);
+      return;
+    }
+
+    // Retrieve the neighbour node
+    for (let i = 0; i < plotIds.length; i++) {
+      if (plotIds[i].innerHTML == neighbour.id) {
+        var neighbourElement = plotIds[i].parentElement;
+        break;
+      }
+    };
+
+    // Append the new node
+    if (neighbour.follow == 'previous') {
+      neighbourElement.insertAdjacentElement('afterend', element);
+    }
+    else if (neighbour.follow == 'next') {
+      neighbourElement.insertAdjacentElement('beforebegin', element);
+    };
+  }
+  else {
+    // For 'edit' and 'delete'
+    // Retrieve the current plot node
+    for (let i = 0; i < plotIds.length; i++) {
+      if (plotIds[i].innerHTML == data.plot_id) {
+        element = plotIds[i].parentElement;
+        break;
+      }
+    };
+
+    // Remove all children and the scene node itself
+    while (element.firstChild) {
+      element.removeChild(element.lastChild);
+    }
+    element.remove();
+    
+    if (action == 'edit') {
+      // Call recursively to add the updated node back in
+      update_plot_list(data, neighbour, 'add');
     };
   };
 };
@@ -542,6 +680,44 @@ window.onload = function() {
   // Calling a form for new plot
   document.getElementById('newPlot').addEventListener("click", function() {
     populate_plot_menu(plot_default, 'add');
+  });
+
+  // Calling a form to edit existing plot
+  document.getElementById('editPlot').addEventListener("click", function() {
+    // TODO when no active plot selected, disable the edit button
+    let id = active.querySelector('.plot_id').innerHTML;
+    let plot = PLOTS.find(item => item.plot_id == id);
+    populate_plot_menu(plot, 'edit');
+  });
+
+  // Retrieving edited/created plot data
+  let plotMenu = document.getElementById('plotMenu');
+  plotMenu.addEventListener("submit", function(e) {
+    e.preventDefault();
+    var formData = new FormData(plotMenu);
+    console.log(formData);
+    // Process form data into plot format
+    var processed = process_plot(formData);
+    console.log(processed.data);
+    console.log(processed.neighbour);
+    console.log(processed.action);
+
+    // Add the scene into PLOTS storage
+    let record = update_plots(processed.data, processed.neighbour, processed.action);
+    //console.log(DATA);
+    // Add the plot into the list
+    update_plot_list(processed.data, processed.neighbour, processed.action);
+    // TODO record step in history (send record to relevant function)
+    // TODO update the canvas
+  });
+
+  // Delete selected plot
+  document.getElementById('deletePlot').addEventListener("click", function() {
+    // CAN BE OPTIMISED - same code as for edit scene
+    let id = active.querySelector('.plot_id').innerHTML;
+    let plot = PLOTS.find(item => item.plot_id == id);
+    update_plots(plot, null, 'delete');
+    update_plot_list(plot, null, 'delete');
   });
 };
 
