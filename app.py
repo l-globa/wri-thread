@@ -2,7 +2,7 @@
 import os
 
 # from cs50 import SQL
-from flask import Flask, render_template, request, redirect, flash, url_for, session, send_from_directory, jsonify
+from flask import Flask, render_template, request, redirect, flash, url_for, session, send_from_directory, jsonify, make_response
 from flask_session import Session
 
 # Configure the app
@@ -30,37 +30,49 @@ def after_request(response):
 # TODO wrap routes requiring a loaded project
 
 # Canvas test
-@app.route("/canvas")
+@app.route("/canvas", methods=['POST', 'GET'])
 def canvas():
-    return render_template("canvas.html")
+    if request.method == 'GET':
+        return render_template("canvas.html")
+    else:
+        data = request.form
+        data = request.json["data"]
+        answer = 'done'
+        return make_response(jsonify(data), 200)
 
 # Default page
-@app.route("/")
+@app.route("/", methods=['POST', 'GET'])
 def index():
     # plots = db.execute("SELECT * FROM plots ORDER BY priority")
     # scenes = db.execute("SELECT * FROM scenes ORDER BY chronology")
     # narrative = db.execute("SELECT * FROM scenes JOIN narrative ON scenes.id = narrative.scene_id ORDER BY scenes.id")
+    if request.method == 'POST':
+        # do this
+        data = request.json
+        answer = 'done'
+        return make_response(jsonify(answer), 200)
+    else:
+        data = {
+            'scenes': [
+                {'title': 'Beginning. Introducing LRRH', 'item_id': 1, 'type': 'normal', 'contents': 'LRRH sets out into the forest to bring her grandma some bread', 'pick_main': 1, 'part_of': [1]},
+                {'title': 'Middle', 'item_id': 2, 'type': 'normal', 'contents': 'Some text', 'pick_main': 1, 'part_of': [1, 2]},
+                {'title': 'End', 'item_id': 3, 'type': 'normal', 'contents': 'Lorem ipsum', 'pick_main': 2, 'part_of': [1, 2]},
+            ],
+            'plots': [
+                {'title': 'Beginning', 'item_id': 1, 'colour': 'tomato', 'length': 3},
+                {'title': 'Development', 'item_id': 2, 'colour': 'purple', 'length': 2},
+                {'title': 'Unused', 'item_id': 3, 'colour': 'green', 'length': 5},
+            ],
+        }
 
-    data = {
-        'scenes': [
-            {'title': 'Beginning. Introducing LRRH', 'scene_id': 1, 'type': 'normal', 'contents': 'LRRH sets out into the forest to bring her grandma some bread', 'pick_main': 1, 'part_of': [1]},
-            {'title': 'Middle', 'scene_id': 2, 'type': 'normal', 'contents': 'Some text', 'pick_main': 1, 'part_of': [1, 2]},
-            {'title': 'End', 'scene_id': 3, 'type': 'normal', 'contents': 'Lorem ipsum', 'pick_main': 2, 'part_of': [1, 2]},
-        ],
-        'plots': [
-            {'title': 'Beginning', 'id': '1', 'colour': 'tomato', 'length': 3},
-            {'title': 'Development', 'id': '2', 'colour': 'purple', 'length': 2},
-        ],
-    }
+        # Data for testing the scripts with no pre-written scenes
+        empty = {
+            'scenes': [],
+            'plots': [],
+        }
 
-    # Data for testing the scripts with no pre-written scenes
-    empty = {
-        'scenes': [],
-        'plots': [],
-    }
-
-    return render_template("index.html", title="prototype", data=empty)
-    # TODO dynamically populate project info fields
+        return render_template("index.html", title="prototype", data=data)
+        # TODO dynamically populate project info fields
 
 
 # JSON request handling route
