@@ -86,7 +86,15 @@ window.onload = function() {
 
         // Create a new selection and load the options
         let list = Array.from(partOfList.querySelectorAll('input')).filter(item => item.checked == true);
-        load_options(list, mainPlot, 'value', 'innerHTML', null);
+        
+        // This fixes the rendering bug but might need to be reworked for performance
+        let labels = new Array();
+        for (let i = 0; i < list.length; i++) {
+            let label = Array.from(partOfList.querySelectorAll('label')).find(item => item.htmlFor == list[i].id);
+            labels.push(label);
+        };
+
+        load_options(labels, mainPlot, 'value', 'innerHTML', null);
     });
 
     // Delete selected scene

@@ -298,6 +298,7 @@ function load_options(obj, parent, value, text, selected) {
         let label = document.createElement('label');
         label.htmlFor = id;
         label.innerHTML = obj[i][text];
+        label.dataset.value = obj[i][value];
         parent.appendChild(label);
 
         // Create the input element
