@@ -145,23 +145,33 @@ function tweak_element(element, parentTag) {
 
             break;
     };
-    selection_sensor(element, projectData[type].active);
+    selection_sensor(element, type);
     return element;
 };
 
 // Add active state selection sensor event listener
-function selection_sensor(element, activeElement) {
-    element.addEventListener('contextmenu', function(e) {
-      e.preventDefault();
+function selection_sensor(element, itemType) {
+  element.addEventListener('contextmenu', function(e) {
+    // Removes default right-click browser action
+    e.preventDefault();
+
+    if (projectData[itemType].active == this) {   // Triggers when rclk an already active element
+      // Removes focused property and reference to element from active
       this.classList.toggle('focused');
-      if (this.classList.contains('focused')) {
-        activeElement.classList.remove('focused')
-        activeElement = this;
-      }
-      else {
-        activeElement = document.getElementById('shuttle');
-      };
-    });
+      projectData[itemType].active = null;
+    }
+    else if (!projectData[itemType].active) {   // Selecting an element with no currently active one
+      // Sets active to this element, renders focused property
+      this.classList.toggle('focused');
+      projectData[itemType].active = this;
+    }
+    else {    // Selecting an element when another is currently active
+      // Sets active to the new element, toggles focused state of both
+      projectData[itemType].active.classList.toggle('focused');
+      this.classList.toggle('focused');
+      projectData[itemType].active = this;
+    };
+  });
 };
 
         // EDITING DATA VIA FORMS
@@ -459,7 +469,7 @@ function update_item_list(itemType, listElement, data, neighbour, action) {
       
       if (action == 'edit') {
         // Call recursively to add the updated node back in
-        update_item_list(data, neighbour, 'add');
+        update_item_list(itemType, listElement, data, neighbour, 'add');
       };
     };
 };
@@ -467,9 +477,7 @@ function update_item_list(itemType, listElement, data, neighbour, action) {
 // Deletes an element, and all associated event listeners and children
 function delete_element(element) {
     while (element.firstChild) {
-        element.lastChild.removeEventListener();
         element.removeChild(element.lastChild);
     }
-    element.removeEventListener();
     element.remove();
 };

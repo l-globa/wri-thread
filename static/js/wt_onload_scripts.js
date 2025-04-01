@@ -29,8 +29,8 @@ window.onload = function() {
     const deletePlot = byId('deletePlot');
 
     const saveProject = byId('saveProject');
-    projectData.plot.active = shuttle;
-    projectData.scene.active = shuttle;
+    //projectData.plot.active = shuttle;
+    //projectData.scene.active = shuttle;
     console.log(projectData.scene.active);
 
     // ==============================================================================================================================================================
