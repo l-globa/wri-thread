@@ -17,7 +17,7 @@
 //    activeScene: null
 //};
 
-var additions;
+var additions = 0;
 
 var projectData = {
     scene: {
@@ -34,8 +34,8 @@ var projectData = {
 
 const itemDefault = {
     scene: {
-        parentTag: 'article', 
-        childTag: {title: 'summary', contents: 'details'}, 
+        parentTag: 'details', 
+        childTag: {title: 'summary', contents: 'textarea'}, 
         newItem: {title: "Test Scene", contents: "", item_id: 'temp', type: "normal", part_of: [], pick_main: null, neighbour: null, follow: 'after'}
     },
     plot: {
@@ -102,7 +102,7 @@ function create_element(item, dflt) {
     // Create and populate the child nodes from keys-values of item
     var addon = null;
     for (const [key, value] of Object.entries(item)) {
-      let tag = dflt.childTag[key] ?? 'p';
+      let tag = dflt.childTag[key] ?? 'div';
       addon = element.appendChild(document.createElement(tag));
       addon.classList.add(key);
       addon.innerHTML = value;
@@ -118,7 +118,7 @@ function create_element(item, dflt) {
 // Tweaks the fields of a given element depending on it's tag
 function tweak_element(element, parentTag) {
     switch (parentTag) {
-        case 'article':     // Scene element
+        case 'details':     // Scene element
             var type = 'scene'
 
             // Assign appropriate classes
@@ -126,7 +126,11 @@ function tweak_element(element, parentTag) {
 
             // Make title and contents visible
             element.querySelector('.title').hidden = false;
-            element.querySelector('.contents').hidden = false;
+            let contents = element.querySelector('.contents');
+            contents.hidden = false;
+            contents.disabled = true;
+            contents.cols = 100;
+            contents.rows = 3;
             
             break;
         case 'p':           // Plot element
@@ -364,10 +368,10 @@ function process_submitted_item(formData) {
     formData.delete('neighbour');
   
     // Copy fields that require no change
-    for (const info of formData.entries()) {
+    for (const info of Array.from(formData).reverse()) {
       data[info[0]] = info[1];
     };
-  
+
     return {data, neighbour, action};
 };
 
@@ -480,4 +484,155 @@ function delete_element(element) {
         element.removeChild(element.lastChild);
     }
     element.remove();
+};
+
+// ==============================================================================================================================================================
+// Paper js
+
+// Global variables
+const canvas = {
+  origin: {x: 100, y: 100},
+  step: {x: 100, y: 50},
+  buffer: {text: -20, plot: 70}
+};
+
+// Updates when window loads and canvas tag is initialised
+const symbols = {
+  normal: null,
+  flashback: null,
+  dream: null,
+};
+
+var plotlines = {};
+var allScenes = null;
+var allConnections = null;
+var iconCount = 0;
+
+// Function declarations
+
+// Applies consistent styling to scene symbols
+function style_symbol(path) {
+  path.fillColor = 'white';
+  path.strokeColor = 'black';
+  path.strokeWidth = 2;
+  return path;
+};
+
+// Populates the plot priority array for easy access later
+function load_plotlines() {
+  projectData.plot.all.forEach(function(value, index) {
+    plotlines[value.item_id] = {};
+    let line = plotlines[value.item_id];
+    line.priority = index;
+    line.icons = new paper.Group();
+    line.lines = new paper.Group();
+    line.ids = new Array();
+  });
+  // TODO: consider moving the colour parameter here?
+  console.log(plotlines);
+};
+
+// Assigns a y value to a plot id, returns y coords of starting point
+function place_plot(itemId) {
+  position = projectData.plot.all.findIndex(item => item.item_id == itemId);
+  let y = canvas.origin.y * priority;
+  return y;
+};
+
+// Places a scene object on the canvas
+function summon_scene(item_id, position, type, plotId) {
+  let scene = new paper.Path();
+  scene.moveTo(canvas.origin.x + (position * canvas.step.x), canvas.origin.y + (plotlines[plotId].priority * canvas.step.y));
+  scene.data.icon = symbols[type].place(scene.bounds.center);
+  scene.data.item_id = item_id;
+  scene.data.plotId = plotId;
+  return scene;
+  // TODO add support for titles
+};
+
+function title_scene(scene, title) {
+  let iconTitle = new paper.PointText({
+      content: title,
+      point: scene.bounds.center.add(0, canvas.buffer.text),
+      justification: 'left'
+  });
+  iconTitle.rotate(-30, scene.bounds.center);
+  return iconTitle;
+};
+
+// Draws a conncetion between two scenes
+function draw_connection(start, finish, plotId) {
+  let connection = null;
+  // Add start and end buffer lines
+  if (!start) {
+    let buffer = new paper.Point(-canvas.buffer.plot, 0);
+    connection = new paper.CompoundPath({
+      children: [
+        new paper.Path.Line(finish.bounds.center.add(buffer), finish.bounds.center),
+        new paper.Path.Circle(finish.bounds.center.add(buffer), 4)
+      ]
+    });
+  }
+  else if (!finish) {
+    let buffer = new paper.Point(canvas.buffer.plot, 0);
+    connection = new paper.CompoundPath({
+      children: [
+        new paper.Path.Line(start.bounds.center.add(buffer), start.bounds.center),
+        new paper.Path.Circle(start.bounds.center.add(buffer), 4)
+      ]
+    });
+  }
+  else {
+    connection = new paper.Path.Line(start.bounds.center, finish.bounds.center);
+  };
+  // TODO: consider taking the colour calculation out into the outer function
+  // Also applies to buffer calc
+  let colour = projectData.plot.all[plotlines[plotId].priority].colour;
+  connection.strokeColor = colour;
+  connection.strokeWidth = 4;
+  connection.fillColor = colour;
+  connection.data.plotId = plotId;
+  return connection;
+};
+
+// Returns a visible scene object with the given Id
+function get_scene_object(item_id) {
+  return allScenes.getItem({
+    data: {
+      item_id: item_id,
+      hidden: false
+      //icon: {
+      //  visible: true
+      //}
+    }
+  });
+};
+
+function find_connection_vertices(finishIndex, plotId) {
+  let startPoint = null;
+  let finishPoint = null;
+
+  let list = plotlines[plotId].ids;
+
+  if (finishIndex == 0) {
+    // Case for first plot point, only find finish
+    finishPoint = get_scene_object(list[finishIndex]);
+  }
+  else if (finishIndex == plotlines[plotId].ids.length) {
+    // Case for the last plot point, only find start
+    startPoint = get_scene_object(list[finishIndex - 1])
+  }
+  else {
+    // Must find start and finish
+    finishPoint = get_scene_object(list[finishIndex]);
+    startPoint = get_scene_object(list[finishIndex - 1]);
+  }
+
+  return {startPoint, finishPoint};
+};
+
+  // Returns true if selected plot is main for the selected scene
+function test_if_main(item_id, plotId) {
+  let scene = projectData.scene.all.find(item => item.item_id == item_id);
+  return (scene.pick_main == plotId);
 };

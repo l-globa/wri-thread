@@ -4,7 +4,6 @@ window.onload = function() {
     // ==============================================================================================================================================================
     // Assigning DOM elements to variables
 
-    console.log("loaded");
     // Data
     const shuttle = byId('shuttle');
     const sceneList = byId('sceneList');
@@ -29,9 +28,6 @@ window.onload = function() {
     const deletePlot = byId('deletePlot');
 
     const saveProject = byId('saveProject');
-    //projectData.plot.active = shuttle;
-    //projectData.scene.active = shuttle;
-    console.log(projectData.scene.active);
 
     // ==============================================================================================================================================================
     // Loading data
@@ -139,7 +135,6 @@ window.onload = function() {
         let formData = new FormData(this);
         
         // Close the dialog window
-        console.log(this.querySelector('.modalClose'));
         this.querySelector('.modalClose').dispatchEvent(new Event('click'));
 
         // Process the data
@@ -174,6 +169,140 @@ window.onload = function() {
         // TODO record step in history (send record to relevant function)
         // TODO update the canvas
     });
+
+    // ==============================================================================================================================================================
+    // Handling paper.js scripts
+
+    //Get a reference for the canvas object
+    const canvas = document.getElementById('myCanvas');
+
+    // Create an empty project and a view for the canvas:
+    paper.setup(canvas);
+
+    // Needs a separate event listener as paper js doesn't have wheel tool
+    byId('myCanvas').addEventListener('wheel', function(event) {
+        var newZoom = paper.view.zoom; 
+        var oldZoom = paper.view.zoom;
+        
+        if (event.deltaY < 0) {			
+            newZoom = paper.view.zoom * 1.05;
+        } else {
+            newZoom = paper.view.zoom * 0.95;
+        }
+        
+        var beta = oldZoom / newZoom;
+        
+        var mousePosition = new paper.Point(event.offsetX, event.offsetY);
+        
+        //viewToProject: gives the coordinates in the Project space from the Screen Coordinates
+        var viewPosition = paper.view.viewToProject(mousePosition);
+        
+        var mpos = viewPosition;
+        var ctr = paper.view.center;
+        
+        var pc = mpos.subtract(ctr);
+        var offset = mpos.subtract(pc.multiply(beta)).subtract(ctr);	
+        
+        paper.view.zoom = newZoom;
+        paper.view.center = paper.view.center.add(offset);
+        
+        event.preventDefault();
+        paper.view.draw();
+        // TODO: retrieve zoom factor to display to the user
+        // TODO: add support to zoom in/out via sliders/keyboard/buttons
+    });
+
+    with (paper) {
+        var tool = new Tool();
+        tool.onMouseDrag = function(event) {
+            var pan_offset = event.point.subtract(event.downPoint);
+            paper.view.center = paper.view.center.subtract(pan_offset);
+        };
+    };
+
+    // Normal scene symbol
+    var normalPath = new paper.Path.Circle(new paper.Point(-10, -10), 10);
+    symbols.normal = new paper.Symbol(style_symbol(normalPath));
+
+    // Flashback scene symbol
+    var flashbackPath = new paper.CompoundPath({
+        children: [
+            new paper.Path.Circle(new paper.Point(-10, 10), 10),
+            new paper.Path.RegularPolygon(new paper.Point(-10, 10), 3, 8).rotate(-90, new paper.Point(-10, 10))
+        ]
+    });
+    symbols.flashback = new paper.Symbol(style_symbol(flashbackPath));
+
+    // Dream scene symbol
+    var dreamPath = new paper.CompoundPath({
+        children: [
+            new paper.Path.Circle(new paper.Point(-10, 10), 10),
+            new paper.Path.RegularPolygon(new paper.Point(-10, 10), 5, 3)
+        ]
+    });
+    symbols.dream = new paper.Symbol(style_symbol(dreamPath));
+
+    //symbols.normal.place(new paper.Point(100, 100));
+    //symbols.flashback.place(new paper.Point(100, 200));
+    //symbols.dream.place(new paper.Point(100, 300));
+
+    // Initialise item groups
+    allScenes = new paper.Group();
+    allConnections = new paper.Group();
+
+    // Set correct rendering hierarchy
+    allScenes.insertAbove(allConnections);
+
+    // Load plotline-specific data
+    load_plotlines();
+
+    // Loads all the scenes
+    projectData.scene.all.forEach(function(value, index) {
+        for (let i = 0; i < value.part_of.length; i++) {
+            var scene = summon_scene(value.item_id, index, value.type, value.part_of[i]);
+            if (value.part_of[i] != value.pick_main) {
+                scene.data.icon.visible = false;
+            }
+            else if (value.title) {
+                title_scene(scene, value.title);
+                scene.data.hidden = false;
+            };
+            plotlines[value.part_of[i]].ids.push(value.item_id);
+            allScenes.addChild(scene);
+            //TODO: group the returned scenes
+        };
+    });
+
+    //console.log(allScenes);
+    //console.log(plotlines[3].ids);
+
+    //console.log(get_scene_object(1));
+    //console.log(allScenes.children[0].data.icon)
+
+    // Load connections
+    for (let i = 1; i < projectData.plot.count + 1; i++) {
+        if (plotlines[i].ids != 0) {
+            for (let j = 0; j < plotlines[i].ids.length + 1; j++) {
+                let coords = find_connection_vertices(j, i);
+                let connection = draw_connection(coords.startPoint, coords.finishPoint, i);
+                allConnections.addChild(connection);
+            };
+        }
+    };
+
+    // Load connentions
+    // This isn't pretty but it works --- TODO: rewrite
+    //for (let i = 1; i < projectData.plot.count + 1; i++) {
+    //    if (plotlines[i].icons.hasChildren()) {
+    //        let group = Array.from(plotlines[i].icons.children);
+    //        for (let j = -1; j < group.length; j++) {
+    //            let connection = draw_connection(group[j], group[j + 1], i);
+    //            plotlines[i].lines.addChild(connection);
+    //        };
+    //    };
+    //};
+
+    paper.view.draw();
 
     // ==============================================================================================================================================================
     // Communicating with the server
