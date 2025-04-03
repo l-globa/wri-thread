@@ -20,24 +20,26 @@
                     // Parameters needed: scale, offsetX, offsetY
             </script -->
         </section>
-        <section class="scene-list">
+        <section id="sceneList" class="scene-list">
             <button id="newScene">New Scene</button>
             <button id="editScene">Edit Scene</button>
             <button id="deleteScene">Delete Scene</button>
         </section>
-        <aside class="plot-list">
+        <div>
             <button id="newPlot">New Plot</button>
             <button id="editPlot">Edit Plot</button>
             <button id="deletePlot">Delete Plot</button>
-        </aside>
+            <aside id="plotList" class="plot-list">
+            </aside>
+        </div>
     </div>
-    <div class="container">
-        <form id="sceneMenu">
+    <dialog id="sceneDialog" class="modal">
+        <form id="sceneMenu" name="scene">
             <label for="title">Scene title</label><br>
-            <input type="text" id="title" name="title" value="New Scene"><br>
+            <input type="text" id="title" class="title" name="title" value="New Scene"><br>
             <label for="contents">Contents:</label><br>
-            <input type="text" id="contents" name="contents" value="" placeholder="What happens in the scene?"><br>
-            <input type="hidden" id="scene_id" name="scene_id" value=""><br>
+            <textarea type="text" id="contents" class="contents" name="contents" value="" placeholder="What happens in the scene?" rows="10" cols="70"></textarea><br>
+            <input type="hidden" id="scene_id" class="item_id" name="item_id" value=""><br>
             <p>Choose the scene type:</p>
                 <label for="normal">Normal</label>
                 <input type="radio" id="normal" name="type" value="normal"><br>
@@ -46,50 +48,45 @@
                 <label for="dream">Dream</label>
                 <input type="radio" id="dream" name="type" value="dream"><br>
             <p>Insert new scene:</p>
-            <label for="before">before</label>
-            <input type="radio" id="before" name="follow" value="next">
-            <label for="after">after</label>
-            <input type="radio" id="after" name="follow" value="previous">
-            <select id="sceneList" name="neighbour" search='true' required>
-                <!-- option with value = scene_id, innerHTML = scene title -->
-            </select><br>
-            <label for="part_of">Select all applicable plots:</label><br>
-            <select id="part_of" name="part_of" multiple size="3" required>
-                <!-- option with value = plot_id, innerHTML = plot title -->
-            </select><br>
-            <label for="main_plot">Pick the main plot:</label>
-            <select id="main_plot" name="main_plot" required>
-                <!-- option with value = plot_id OR array index that holds the plot_id, innerHTML = plot title -->
-            </select><br>
-            <input type="hidden" id="sceneSubmit" name="action" value="">
+            <label for="scene_before">before</label>
+            <input type="radio" id="scene_before" class="before" name="follow" value="next">
+            <label for="scene_after">after</label>
+            <input type="radio" id="scene_after" class="after" name="follow" value="previous">
+            <details>
+                <summary>Please select a scene</summary>
+                <fieldset class="neighbourList" name="neighbour"></fieldset>
+            </details>
+            <details>
+                <summary>Select all applicable plots:</summary>
+                <fieldset id="part_of" class="part_of" name="part_of"></fieldset>
+                <p>Pick the main plot:</p>
+                <fieldset id="main_plot" class="main_plot" name="main_plot"></fieldset>
+            </details>
+            <input type="hidden" class="menuAction" name="action" value="">
             <input type="submit" value="Save scene">
-            <!--
-            Fields like chronology, position and primary state
-            should be processed with js to be filled automatically
-            load scene_id as hidden to correctly process data
-            needs an option for additional plot hookup
-            skip time start and end for now as not relevant for function
-            -->
+            <button type="button" class="modalClose" name="sceneDialog">Cancel</button>
         </form>
-    </div>
-    <div class="container">
-        <form id="plotMenu">
-            <label for="plotTitle">Plot title</label><br>
-            <input type="text" id="plot_title" name="plot_title" value=""><br>
-            <input type="hidden" id="plot_id" name="plot_id" value="">
-            <label for="plotColor">Choose colour:</label>
-            <input type="color" id="colour" name="colour" value="">
+    </dialog>
+    <dialog id="plotDialog" class="modal">
+        <form id="plotMenu" name="plot">
+            <label for="plot_title">Plot title</label><br>
+            <input type="text" id="plot_title" class="title" name="title" value=""><br>
+            <input type="hidden" name="item_id" class="item_id" value="">
+            <label for="plot_colour">Choose colour:</label>
+            <input type="color" id="plot_colour" class="colour" name="colour" value="">
             <p>Insert new plot:</p>
-            <label for="before">before</label>
-            <input type="radio" id="p_before" name="follow" value="next">
-            <label for="after">after</label>
-            <input type="radio" id="p_after" name="follow" value="previous">
-            <select id="plotList" name="neighbour" search='true' required>
-                <!-- option with value = scene_id, innerHTML = scene title -->
-            </select><br>
-            <input type="hidden" id="plotSubmit" name="action" value="">
+            <label for="plot_before">before</label>
+            <input type="radio" id="plot_before" class="before" name="follow" value="next">
+            <label for="plot_after">after</label>
+            <input type="radio" id="plot_after" class="after" name="follow" value="previous">
+            <details>
+                <summary>Please select a plot</summary>
+                <fieldset class="neighbourList" name="neighbour"></fieldset>
+            </details>
+            <input type="hidden" class="menuAction" name="action" value="">
             <input type="submit" value="Save plot">
+            <button type="button" class="modalClose" name="plotDialog">Cancel</button>
             <!-- no need to upload the length attribute here as it's not changed by the user -->
         </form>
-    </div>
+    </dialog>
 {% endblock %}
