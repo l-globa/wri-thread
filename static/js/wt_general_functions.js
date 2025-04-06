@@ -231,10 +231,10 @@ function populate_menu(menuElement, item, action) {
         // Load the selected main plot
         partOf.dispatchEvent(new Event('change'));
         if (item.pick_main) {
-            let options = menuElement.querySelector('.main_plot').children;
+            let options = menuElement.querySelector('.main_plot').querySelectorAll('input');
             for (let i = 0; i < options.length; i++) {
                 if (options[i].value == item.pick_main) {
-                    options[i].selected = true;
+                    options[i].checked = true;
                 };
             };
         };
@@ -319,7 +319,8 @@ function load_options(obj, parent, value, text, selected) {
         let input = document.createElement('input');
         input.id = id;
         input.name = parent.name;
-        input.value = obj[i][value];
+        // Second option for the dynamic list
+        input.value = (obj[i][value])? obj[i][value] : obj[i].dataset.value;
         input.type = type;
         
         // Select if needed
@@ -349,15 +350,22 @@ function process_submitted_item(formData) {
     if (formData.get('item_id') == "temp") {
       formData.delete('item_id');
       additions++;
-      data.item_id = String(- additions);
+      data.item_id = - additions;
     };
     
     // Scene-specific steps
     if (formData.has('part_of')) {
 
         // Convert the plot_id array into correct form
-        data.part_of = formData.getAll('part_of');
+        let all = formData.getAll('part_of');
+        for (let i = 0; i < all.length; i++) {
+          all[i] = Number(all[i]);
+        };
+        data.part_of = all;
         formData.delete('part_of');
+
+        data.pick_main = Number(formData.get('main_plot'));
+        formData.delete('main_plot');
     };
 
     // Retrieve neighbour info
@@ -372,6 +380,8 @@ function process_submitted_item(formData) {
       data[info[0]] = info[1];
     };
 
+    data.item_id = Number(data.item_id);
+
     return {data, neighbour, action};
 };
 
@@ -380,19 +390,19 @@ function process_submitted_item(formData) {
 function update_global_array(itemType, data, neighbour, action) {
     // CAN BE SIMPLIFIED
     let index = 0,
-        oldItem = [],
+        oldItem = {},
         newItem = data;
   
     if (action == 'add') {
       // Inserts the item at position specified by the index
       index = calculate_position(itemType, neighbour.id, neighbour.follow);
-      oldItem = projectData[itemType].all.splice(index, 0, newItem);
+      oldItem = projectData[itemType].all.splice(index, 0, newItem)[0];
       projectData[itemType].count++;
     }
     else {
       // Removes the item from specified index
       index = calculate_position(itemType, data.item_id, 'this');
-      oldItem = projectData[itemType].all.splice(index, 1);
+      oldItem = projectData[itemType].all.splice(index, 1)[0];
       projectData[itemType].count--;
       
       if (action == 'edit') {
@@ -400,12 +410,12 @@ function update_global_array(itemType, data, neighbour, action) {
         update_global_array(itemType, data, neighbour, 'add');
       }
       else {
-        newItem = [];
+        newItem = {};
       };
     };
     
     // Returns the values to be saved in history
-    return [oldItem, newItem, index, action];
+    return {oldItem, newItem, index, action};
 };
 
 // Takes an item_id and follow (previous/next/this) parameter and returns a global array index
@@ -504,9 +514,10 @@ const symbols = {
 };
 
 var plotlines = {};
+
 var allScenes = null;
 var allConnections = null;
-var iconCount = 0;
+// TODO: add a way to select scenes and note the selected scene - must communicate with the html list
 
 // Function declarations
 
@@ -521,12 +532,19 @@ function style_symbol(path) {
 // Populates the plot priority array for easy access later
 function load_plotlines() {
   projectData.plot.all.forEach(function(value, index) {
+    // Initialise a new plotline
     plotlines[value.item_id] = {};
     let line = plotlines[value.item_id];
+
+    // Note priority
     line.priority = index;
-    line.icons = new paper.Group();
-    line.lines = new paper.Group();
+
+    // Holds connection ids
     line.ids = new Array();
+
+    // Plotline flanking symbols, filled when creating connections
+    line.beginning = null;
+    line.end = null;
   });
   // TODO: consider moving the colour parameter here?
   console.log(plotlines);
@@ -540,14 +558,23 @@ function place_plot(itemId) {
 };
 
 // Places a scene object on the canvas
-function summon_scene(item_id, position, type, plotId) {
+function summon_scene(item_id, position, type, plotId, title) {
+
   let scene = new paper.Path();
+
   scene.moveTo(canvas.origin.x + (position * canvas.step.x), canvas.origin.y + (plotlines[plotId].priority * canvas.step.y));
   scene.data.icon = symbols[type].place(scene.bounds.center);
+
+  // Record data
   scene.data.item_id = item_id;
   scene.data.plotId = plotId;
+  scene.data.title = title_scene(scene, title);
+
+  // Set up connection storage
+  scene.data.left = new Array();
+  scene.data.right = new Array();
+
   return scene;
-  // TODO add support for titles
 };
 
 function title_scene(scene, title) {
@@ -562,37 +589,55 @@ function title_scene(scene, title) {
 
 // Draws a conncetion between two scenes
 function draw_connection(start, finish, plotId) {
+
   let connection = null;
-  // Add start and end buffer lines
-  if (!start) {
-    let buffer = new paper.Point(-canvas.buffer.plot, 0);
-    connection = new paper.CompoundPath({
-      children: [
-        new paper.Path.Line(finish.bounds.center.add(buffer), finish.bounds.center),
-        new paper.Path.Circle(finish.bounds.center.add(buffer), 4)
-      ]
-    });
-  }
-  else if (!finish) {
-    let buffer = new paper.Point(canvas.buffer.plot, 0);
-    connection = new paper.CompoundPath({
-      children: [
-        new paper.Path.Line(start.bounds.center.add(buffer), start.bounds.center),
-        new paper.Path.Circle(start.bounds.center.add(buffer), 4)
-      ]
-    });
-  }
-  else {
-    connection = new paper.Path.Line(start.bounds.center, finish.bounds.center);
-  };
+
   // TODO: consider taking the colour calculation out into the outer function
   // Also applies to buffer calc
   let colour = projectData.plot.all[plotlines[plotId].priority].colour;
+
+  // Add start and end buffer lines
+  if (!start) {
+    start = (plotlines[plotId].beginning)? plotlines[plotId].beginning : create_line_flanks(colour, plotId, finish, 'beginning');
+  }
+  else if (!finish) {
+    finish = (plotlines[plotId].end)? plotlines[plotId].end : create_line_flanks(colour, plotId, start, 'end');
+  };
+  
+  connection = new paper.Path.Line(start.bounds.center, finish.bounds.center);
+  
+  // TODO: set up a styling function as this repeats?
   connection.strokeColor = colour;
   connection.strokeWidth = 4;
   connection.fillColor = colour;
+
+  // Add the plotId to the connection data for retrieval
   connection.data.plotId = plotId;
   return connection;
+};
+
+// Creates the plotline flanking object
+function create_line_flanks(colour, plotId, refPoint, type) {
+  let flank = null;
+  switch (type) {
+    case 'beginning':
+      flank = new paper.Path.Circle(refPoint.bounds.center.subtract(canvas.buffer.plot, 0), 4);
+      plotlines[plotId].beginning = flank;
+      break;
+    case 'end':
+      flank = new paper.Path.Circle(refPoint.bounds.center.add(canvas.buffer.plot, 0), 4);
+      plotlines[plotId].end = flank;
+      break;
+  };
+
+  flank.strokeColor = colour;
+  flank.strokeWidth = 4;
+  flank.fillColor = colour;
+
+  flank.data.left = [];
+  flank.data.right = [];
+
+  return flank;
 };
 
 // Returns a visible scene object with the given Id
@@ -600,10 +645,6 @@ function get_scene_object(item_id) {
   return allScenes.getItem({
     data: {
       item_id: item_id,
-      hidden: false
-      //icon: {
-      //  visible: true
-      //}
     }
   });
 };
@@ -631,8 +672,165 @@ function find_connection_vertices(finishIndex, plotId) {
   return {startPoint, finishPoint};
 };
 
-  // Returns true if selected plot is main for the selected scene
-function test_if_main(item_id, plotId) {
-  let scene = projectData.scene.all.find(item => item.item_id == item_id);
-  return (scene.pick_main == plotId);
+// Changes connection attachment points
+function reassign_connection(connection, start, finish) {
+
+  if (start) {
+    connection.firstSegment.point = start.bounds.center;
+    start.data.right.push(connection.id);
+  };
+  if (finish) {
+    connection.lastSegment.point = finish.bounds.center;
+    finish.data.left.push(connection.id);
+  };
+};
+
+function delete_canvas_scene(item_id) {
+
+  // Retrieve the canvas object
+  let scene = get_scene_object(item_id);
+
+  // Delete title and symbol icon
+  scene.data.title.remove();
+  scene.data.icon.remove();
+
+  // Reroute all connections
+
+  scene.data.left.forEach(function(value) {
+    let line = fetch_connection(value);
+    let n = line.data.plotId;
+    let i = plotlines[n].ids.indexOf(item_id);
+    let finish = get_scene_object(plotlines[n].ids[i + 1]) ?? plotlines[n].end;
+
+    reassign_connection(line, null, finish);
+  });
+
+  scene.data.right.forEach(function(value) {
+    let line = fetch_connection(value);
+    let n = line.data.plotId;
+    let i = plotlines[n].ids.indexOf(item_id);
+    let start = get_scene_object(plotlines[n].ids[i - 1]) ?? plotlines[n].beginning;
+    reassign_connection(line, start, null);
+  });
+
+  // TODO: either edit existing or redraw edited connections
+  
+  // Delete the scene itself
+  scene.remove();
+
+};
+
+function update_plotlines(action, item_id, plots, searchIndex) {
+  console.log(plots);
+  if (action == 'add') {
+    //let searchIndex = projectData.scene.all.findIndex(item => item.item_id =)
+    // TODO: find a way to get the correct position - neighbour mechanic?
+    let array = projectData.scene.all.slice(searchIndex + 1);
+    console.log(array);
+    if (array.length == 0) {
+      // last item case
+      // TODO: exception for new scene being last in the project
+      console.log('last scene case')
+      plots.forEach(function(n) {
+        plotlines[n].ids.push(item_id);
+      });
+    }
+    else {
+      plots.forEach(function(n) {
+        console.log('search')
+        // Search all scenes, starting from index, to find next scene with same main plot
+        // Get its item id and go to plotlines to find its index there
+        // Insert the new scene at given index
+        // If no such item exists the new scene is pushed onto plotline as the last
+        let neighbour = array.find(item => item.pick_main == n);
+        if (neighbour) {
+          console.log(neighbour.item_id);
+          let index = plotlines[n].ids.indexOf(neighbour.item_id);
+          console.log(index)
+          console.log(plotlines[n].ids);
+          plotlines[n].ids.splice(index, 0, item_id);
+          console.log(plotlines[n].ids);
+        }
+        else {
+          console.log('last of plotline only')
+          plotlines[n].ids.push(item_id);
+        };
+      });
+    }; 
+  }
+  else if (action == 'delete') {
+    plots.forEach(function(n) {
+      let index = plotlines[n].ids.indexOf(item_id);
+      plotlines[n].ids.splice(index, 1);
+    })
+  };
+};
+
+function fetch_connection(id) {
+  return allConnections.getItem({
+    id: id,
+  });
+};
+
+// Shifts the whole graph in response to adding or deleting a scene
+function shift_graph(action, scenePosition, sceneId) {
+
+  if (action == 'edit') {
+    // Fetch the scene
+    let object = get_scene_object(sceneId);
+
+    // Check if scene order changed:
+    let oldPosition = (object.bounds.center.x - canvas.origin.x) / canvas.step.x;
+    
+    if (oldPosition == scenePosition) {
+      // No need to shift, quit early and return 'false'
+      return false;
+    };
+  };
+
+  // Calculate x-coordinate cutoff point for move:
+  let cutoff = (scenePosition * canvas.step.x - canvas.step.x / 4) + canvas.origin.x;
+  console.log(cutoff);
+  console.log(scenePosition);
+
+  // Get all items that must be moved fully
+  // Have to exclude CompoundPath otherwise connections are added twice
+  let items = paper.project.getItems({
+    bounds: function(value) {
+      return value.x > cutoff;
+    },
+    className: function(value) {
+      return value != 'Group' && value != 'CompoundPath'
+    }
+  });
+  console.log(items);
+
+  // Get all connections that intersect the cutoff
+  let atCutoff = paper.project.getItems({
+    className: 'Path',
+    bounds: function(value) {
+      return value.topLeft.x < cutoff && value.topRight.x > cutoff
+    }
+  });
+
+  // Move the items according to action
+  let factor = (action == 'add')? 1 : -1;
+  items.forEach(function(value) {
+    value.position = value.position.add(canvas.step.x * factor, 0);
+  });
+
+  // Move the final segment of connections to the new position
+  atCutoff.forEach(function(value) {
+    value.lastSegment.point = value.lastSegment.point.add(canvas.step.x * factor, 0);
+  });
+
+  // TODO: fix the view jumping by setting the viewbox back to origin
+
+  // Return 'true' to confirm the move
+  return true;
+};
+
+// Update plotline flank height
+function level_flank() {
+
 };

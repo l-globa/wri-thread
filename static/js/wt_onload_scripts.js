@@ -90,7 +90,7 @@ window.onload = function() {
             labels.push(label);
         };
 
-        load_options(labels, mainPlot, 'value', 'innerHTML', null);
+        load_options(labels, mainPlot, null, 'innerHTML', null);
     });
 
     // Delete selected scene
@@ -98,8 +98,15 @@ window.onload = function() {
         // CAN BE OPTIMISED - same code as for edit scene
         let id = projectData.scene.active.querySelector('.item_id').innerHTML;
         let item = projectData.scene.all.find(item => item.item_id == id);
-        update_global_array('scene', item, null, 'delete');
+        let record = update_global_array('scene', item, null, 'delete');
         update_item_list('scene', sceneList, item, null, 'delete');
+
+        // Delete canvas objects
+        
+        shift_graph('delete', record.index, Number(id));
+        // TODO: add function to reassign the connections
+        delete_canvas_scene(Number(id));
+        update_plotlines(record.action, Number(id), record.oldItem.part_of, record.index);
     });
 
             // PLOTS
@@ -139,13 +146,22 @@ window.onload = function() {
 
         // Process the data
         var p = process_submitted_item(formData);
+        console.log(p);
 
         // Update global array and DOM elements
-        update_global_array(type, p.data, p.neighbour, p.action);
+        let record = update_global_array(type, p.data, p.neighbour, p.action);
+        console.log(record);
         update_item_list(type, sceneList, p.data, p.neighbour, p.action);
 
         // TODO record step in history (send record to relevant function)
         // TODO update the canvas
+        shift_graph(record.action, record.index, record.newItem.item_id);
+        console.log()
+        summon_scene(record.newItem.item_id, record.index, record.newItem.type, record.newItem.pick_main, record.newItem.title);
+        // TODO: update to include wider function that adds title and hides duplicates
+        // TODO: summon connections for the new scene
+        update_plotlines(record.action, record.newItem.item_id, record.newItem.part_of, record.index);
+        
     });
 
     // TODO: simplify by combining with function above
@@ -242,10 +258,6 @@ window.onload = function() {
     });
     symbols.dream = new paper.Symbol(style_symbol(dreamPath));
 
-    //symbols.normal.place(new paper.Point(100, 100));
-    //symbols.flashback.place(new paper.Point(100, 200));
-    //symbols.dream.place(new paper.Point(100, 300));
-
     // Initialise item groups
     allScenes = new paper.Group();
     allConnections = new paper.Group();
@@ -258,49 +270,42 @@ window.onload = function() {
 
     // Loads all the scenes
     projectData.scene.all.forEach(function(value, index) {
+        // Create and title the scene
+        var scene = summon_scene(value.item_id, index, value.type, value.pick_main, value.title);
+
+        // Add item_id to all plotlines
         for (let i = 0; i < value.part_of.length; i++) {
-            var scene = summon_scene(value.item_id, index, value.type, value.part_of[i]);
-            if (value.part_of[i] != value.pick_main) {
-                scene.data.icon.visible = false;
-            }
-            else if (value.title) {
-                title_scene(scene, value.title);
-                scene.data.hidden = false;
-            };
             plotlines[value.part_of[i]].ids.push(value.item_id);
-            allScenes.addChild(scene);
-            //TODO: group the returned scenes
         };
+
+        // Add object to group
+        allScenes.addChild(scene);
     });
-
-    //console.log(allScenes);
-    //console.log(plotlines[3].ids);
-
-    //console.log(get_scene_object(1));
-    //console.log(allScenes.children[0].data.icon)
 
     // Load connections
     for (let i = 1; i < projectData.plot.count + 1; i++) {
         if (plotlines[i].ids != 0) {
             for (let j = 0; j < plotlines[i].ids.length + 1; j++) {
+                // Selects two visible scenes on plotline and creates a connection
                 let coords = find_connection_vertices(j, i);
                 let connection = draw_connection(coords.startPoint, coords.finishPoint, i);
+
+                // Adds connection to the group for correct rendering
                 allConnections.addChild(connection);
+
+                if (coords.startPoint) {
+                    // Make note of the connection to the right of point
+                    coords.startPoint.data.right.push(connection.id);
+                };
+                if (coords.finishPoint) {
+                    // Make note of the connection to the left of point
+                    coords.finishPoint.data.left.push(connection.id);
+                };
             };
         }
     };
 
-    // Load connentions
-    // This isn't pretty but it works --- TODO: rewrite
-    //for (let i = 1; i < projectData.plot.count + 1; i++) {
-    //    if (plotlines[i].icons.hasChildren()) {
-    //        let group = Array.from(plotlines[i].icons.children);
-    //        for (let j = -1; j < group.length; j++) {
-    //            let connection = draw_connection(group[j], group[j + 1], i);
-    //            plotlines[i].lines.addChild(connection);
-    //        };
-    //    };
-    //};
+    //shift_graph('delete', 3, 3);
 
     paper.view.draw();
 
